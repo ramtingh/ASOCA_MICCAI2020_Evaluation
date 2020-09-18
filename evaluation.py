@@ -8,12 +8,12 @@ from evalutils.io import ImageLoader
 from evalutils.validators import (
     NumberOfCasesValidator, UniquePathIndicesValidator, UniqueImagesValidator
 )
-def hausdorff_95(submission,groundtruth):
+def hausdorff_95(submission,groundtruth, spacing):
     # There are more efficient algorithms for hausdorff distance than brute force, however, brute force is sufficient for datasets of this size.
-    submission_points = np.array(np.where(submission), dtype=np.uint16).T
+    submission_points = spacing*np.array(np.where(submission), dtype=np.uint16).T
     submission_kdtree = cKDTree(submission_points)
     
-    groundtruth_points = np.array(np.where(groundtruth), dtype=np.uint16).T
+    groundtruth_points = spacing*np.array(np.where(groundtruth), dtype=np.uint16).T
     groundtruth_kdtree = cKDTree(groundtruth_points)
     
     distances1,_ = submission_kdtree.query(groundtruth_points)
@@ -61,6 +61,8 @@ class Asoca(ClassificationEvaluation):
         pred_path = case["path_prediction"]
         submission = Loader.load_image(pred_path)
         truth, truth_header = nrrd.read(gt_path)
+        spacing = np.diag(truth_header['space directions'])
+        
         submission = submission>0.5
         if np.count_nonzero(submission)==0:
             raise ValueError(f" Submission {pred_path.name} is empty")
@@ -69,7 +71,7 @@ class Asoca(ClassificationEvaluation):
             raise ValueError(f" Expected image with dimensions {truth.shape}, got {submission.shape} in {pred_path.name}")
         truth = truth>0.5
         dice=dice_score(submission, truth)
-        hausdorff = hausdorff_95(submission=submission, groundtruth=truth)
+        hausdorff = hausdorff_95(submission=submission, groundtruth=truth, spacing=spacing)
 
 
         return {
